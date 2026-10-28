@@ -8,6 +8,7 @@ const ALL_INTERESTS = ['Environment', 'Health', 'Education', 'Community', 'Cultu
 export default function Account() {
   const { identity, profile, isAuthenticated, login } = useIdentity()
   const [orgs, setOrgs] = useState([])
+  const [orgsLoading, setOrgsLoading] = useState(false)
   const [pending, setPending] = useState([])
   const [notifications, setNotifications] = useState([])
   const [recommendations, setRecommendations] = useState([])
@@ -27,35 +28,53 @@ export default function Account() {
   const [selectedInterests, setSelectedInterests] = useState([])
   const [profileSaving, setProfileSaving] = useState(false)
 
+  const identityKey = identity?.studentId
+
   useEffect(() => {
-    if (identity) {
-      setForm((f) => ({
-        ...f,
-        contact_name: identity.studentName,
-        contact_email: identity.email || '',
-      }))
-      setProfileName(profile?.name || identity.studentName || '')
-      setSelectedInterests(profile?.interests || identity.interests || [])
-
-      Promise.all([
-        api.listMyOrganizations(),
-        api.listNotifications(),
-        api.getRecommendations(),
-        api.getStudentHours(identity.studentId),
-      ])
-        .then(([o, n, r, h]) => {
-          setOrgs(o)
-          setNotifications(n)
-          setRecommendations(r)
-          setHoursData(h)
-        })
-        .catch((e) => setError(e.message))
-
-      if ((profile?.roles || []).includes('admin')) {
-        api.listPendingOrganizations().then(setPending).catch((e) => setError(e.message))
-      }
+    let active = true
+    setOrgs([])
+    setPending([])
+    setNotifications([])
+    setRecommendations([])
+    setHoursData(null)
+    setError('')
+    if (!identityKey) {
+      setOrgsLoading(false)
+      return () => { active = false }
     }
-  }, [identity, profile])
+
+    setOrgsLoading(true)
+    setForm((f) => ({
+      ...f,
+      contact_name: identity.studentName,
+      contact_email: identity.email || '',
+    }))
+    setProfileName(profile?.name || identity.studentName || '')
+    setSelectedInterests(profile?.interests || identity.interests || [])
+
+    Promise.all([
+      api.listMyOrganizations(),
+      api.listNotifications(),
+      api.getRecommendations(),
+      api.getStudentHours(identityKey),
+    ])
+      .then(([o, n, r, h]) => {
+        if (!active) return
+        setOrgs(o)
+        setNotifications(n)
+        setRecommendations(r)
+        setHoursData(h)
+      })
+      .catch((e) => { if (active) setError(e.message) })
+      .finally(() => { if (active) setOrgsLoading(false) })
+
+    if ((profile?.roles || []).includes('admin')) {
+      api.listPendingOrganizations()
+        .then((items) => { if (active) setPending(items) })
+        .catch((e) => { if (active) setError(e.message) })
+    }
+    return () => { active = false }
+  }, [identityKey])
 
   async function handleProfileSave(e) {
     e.preventDefault()
@@ -142,6 +161,9 @@ export default function Account() {
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length
+  const hasActiveApplication = orgs.some((organization) =>
+    ['pending', 'approved'].includes(organization.status),
+  )
 
   return (
     <main className="mx-auto max-w-4xl space-y-8 px-4 py-8">
@@ -351,13 +373,17 @@ export default function Account() {
       <section className="card p-6">
         <div className="flex items-center gap-2 mb-2">
           <ShieldCheck className="h-5 w-5 text-emerald-700" />
-          <h2 className="text-xl font-bold text-stone-900">Become an Organizer</h2>
+          <h2 className="text-xl font-bold text-stone-900">
+            {(profile?.roles || []).includes('organizer') ? 'Organization setup' : 'Become an Organizer'}
+          </h2>
         </div>
         <p className="text-sm text-stone-600 mb-5">
-          Student accounts can request organizer access to manage a student club, society, or community group. Applications are verified by an administrator before events can be published.
+          Organization applications are verified by an administrator before events can be published.
         </p>
 
-        <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitOrg}>
+        {orgsLoading ? (
+          <p className="text-sm text-stone-500">Checking your organization application…</p>
+        ) : !hasActiveApplication && <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitOrg}>
           <div>
             <label htmlFor="org-name" className="label">Organization Name</label>
             <input
@@ -417,7 +443,7 @@ export default function Account() {
               Submit organization for approval
             </button>
           </div>
-        </form>
+        </form>}
 
         {orgs.length > 0 && (
           <div className="mt-6 border-t pt-4">

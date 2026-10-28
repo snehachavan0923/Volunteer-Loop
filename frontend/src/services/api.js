@@ -156,4 +156,5 @@ export const api = {
     request(`/api/students/${id(studentId)}/registrations`),
   getOrganizerSummary: (eventId) =>
     request(`/api/organizer/events/${id(eventId)}/summary`),
+  getOrganizerDashboard: () => request('/api/organizer/dashboard'),
 }

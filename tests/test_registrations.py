@@ -9,6 +9,12 @@ def _setup_event_and_duty(mock_db, organizer_sub="auth0|org1", capacity=2, duty_
     dl_dt = now_utc + timedelta(days=deadline_days_ahead) if deadline_days_ahead is not None else None
 
     org = mock_db.organizations.insert_one({"name": "Volunteers Inc", "owner_sub": organizer_sub, "status": "approved"})
+    mock_db.organization_memberships.insert_one({
+        "organization_id": org.inserted_id,
+        "user_sub": organizer_sub,
+        "role": "owner",
+        "status": "active",
+    })
     ev = mock_db.events.insert_one({
         "title": "Community Tutoring",
         "description": "Tutoring middle schoolers",

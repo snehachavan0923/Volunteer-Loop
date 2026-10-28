@@ -105,19 +105,32 @@ def require_duty(db, event_id, duty_id):
 def org_allowed(db, user, event):
     if "admin" in user.get("roles", []):
         return
-    if event.get("created_by") == user["sub"]:
-        return
     org_id = event.get("organization_id")
     if not org_id:
         raise HTTPException(403, "You do not have permission to manage this event.")
-    member = db.organization_memberships.find_one({
+    organization = db.organizations.find_one({"_id": org_id, "status": "approved"})
+    membership = db.organization_memberships.find_one({
         "organization_id": org_id,
         "user_sub": user["sub"],
         "status": "active",
         "role": {"$in": ["owner", "organizer"]},
     })
-    if not member:
+    if not organization or not membership:
         raise HTTPException(403, "Only an organizer of this organization can manage this event.")
+
+def authorized_organization_ids(db, user):
+    memberships = db.organization_memberships.find({
+        "user_sub": user["sub"],
+        "status": "active",
+        "role": {"$in": ["owner", "organizer"]},
+    })
+    membership_ids = [membership["organization_id"] for membership in memberships]
+    if not membership_ids:
+        return []
+    return [org["_id"] for org in db.organizations.find({
+        "_id": {"$in": membership_ids},
+        "status": "approved",
+    })]
 
 # --- Request / Response Models ---
 
@@ -215,9 +228,16 @@ def get_event(event_id: str):
 @router.post("/api/events", status_code=201)
 def create_event(payload: EventPayload, user=Depends(require_role("organizer", "admin"))):
     db = get_db()
-    org = db.organizations.find_one({"owner_sub": user["sub"], "status": "approved"})
-    if "admin" not in user.get("roles", []) and not org:
-        raise HTTPException(403, "Your organization must be approved before publishing events.")
+    org = None
+    if "admin" not in user.get("roles", []):
+        owned_organizations = list(db.organizations.find({"owner_sub": user["sub"], "status": "approved"}))
+        authorized_ids = set(authorized_organization_ids(db, user))
+        owned_organizations = [item for item in owned_organizations if item["_id"] in authorized_ids]
+        if not owned_organizations:
+            raise HTTPException(403, "Your organization must be approved before publishing events.")
+        if len(owned_organizations) > 1:
+            raise HTTPException(409, "More than one approved organization is associated with this account. Contact an administrator.")
+        org = owned_organizations[0]
     doc = payload.model_dump()
     doc.update(
         status="published",
@@ -333,9 +353,10 @@ def delete_duty(event_id: str, duty_id: str, force: bool = False, user=Depends(r
 # --- Registration Endpoints ---
 
 @router.get("/api/events/{event_id}/registrations")
-def event_registrations(event_id: str, include_cancelled: bool = False):
+def event_registrations(event_id: str, include_cancelled: bool = False, user=Depends(require_role("organizer", "admin"))):
     db = get_db()
     e = require_event(db, event_id)
+    org_allowed(db, user, e)
     q = {"event_id": e["_id"]}
     if not include_cancelled:
         q["status"] = "active"
@@ -685,6 +706,32 @@ def organizer_summary(event_id: str, user=Depends(require_role("organizer", "adm
         regs = [clean(r) for r in db.duty_registrations.find({"duty_id": d["_id"], "status": "active"}).sort("created_at", 1)]
         duties.append({**duty_out(db, d), "participants": regs})
     return {"event": event_out(db, e), "participants": participants, "duties": duties}
+
+@router.get("/api/organizer/dashboard")
+def organizer_dashboard(user=Depends(require_role("organizer", "admin"))):
+    db = get_db()
+    if "admin" in user.get("roles", []):
+        organizations = []
+        query = {"status": {"$ne": "cancelled"}}
+        status = "admin"
+    else:
+        organizations = list(db.organizations.find({"owner_sub": user["sub"]}).sort("created_at", -1))
+        authorized_ids = authorized_organization_ids(db, user)
+        query = {
+            "organization_id": {"$in": authorized_ids},
+            "status": {"$ne": "cancelled"},
+        }
+        if authorized_ids:
+            status = "approved"
+        elif any(org.get("status") == "pending" for org in organizations):
+            status = "pending"
+        elif any(org.get("status") == "rejected" for org in organizations):
+            status = "rejected"
+        else:
+            status = "not_submitted"
+
+    events = [event_out(db, event) for event in db.events.find(query).sort("event_date", 1)]
+    return {"status": status, "organizations": [clean(org) for org in organizations], "events": events}
 
 # --- Profile, Organizations, Moderation, Notifications & Recommendations ---
 

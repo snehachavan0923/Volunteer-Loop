@@ -39,6 +39,7 @@ export function IdentityProvider({ children }) {
 
   const acceptAuth = useCallback((result) => {
     localStorage.setItem(TOKEN_KEY, result.access_token)
+    setAccessTokenGetter(async () => result.access_token)
     setToken(result.access_token)
     setProfile(result.user)
     return result.user
@@ -48,6 +49,7 @@ export function IdentityProvider({ children }) {
   const authenticate = useCallback(async (payload) => acceptAuth(await api.login(payload)), [acceptAuth])
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
+    setAccessTokenGetter(null)
     setToken('')
     setProfile(null)
     navigate('/', { replace: true })

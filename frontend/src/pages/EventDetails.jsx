@@ -9,14 +9,13 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import DutyCard from '../components/DutyCard'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingState from '../components/LoadingState'
-import ParticipantList from '../components/ParticipantList'
 import SuccessMessage from '../components/SuccessMessage'
 
 export default function EventDetails() {
   const { eventId } = useParams()
   const { identity, login } = useIdentity()
 
-  const [data, setData] = useState(null) // { event, duties, participants, mine }
+  const [data, setData] = useState(null) // { event, duties, mine }
   const [recommendations, setRecommendations] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -31,15 +30,14 @@ export default function EventDetails() {
     async (studentId) => {
       const seq = ++requestSeq.current
       try {
-        const [event, duties, participants, mine, recs] = await Promise.all([
+        const [event, duties, mine, recs] = await Promise.all([
           api.getEvent(eventId),
           api.listDuties(eventId),
-          api.listEventRegistrations(eventId),
           studentId ? api.getStudentRegistrations(studentId) : Promise.resolve(null),
           api.getRecommendations({ eventId }).catch(() => []),
         ])
         if (seq !== requestSeq.current) return
-        setData({ event, duties, participants, mine })
+        setData({ event, duties, mine })
         setRecommendations(recs)
         setLoadError('')
       } catch (err) {
@@ -139,7 +137,7 @@ export default function EventDetails() {
   }
   if (!data) return null
 
-  const { event, duties, participants, mine } = data
+  const { event, duties, mine } = data
   const myEventReg = mine?.event_registrations.find((r) => r.event.id === event.id && r.status === 'active') || null
   const myDutyIds = new Set((myEventReg?.duty_registrations || []).filter((d) => d.status === 'active').map((d) => d.duty.id))
   const full = event.remaining_seats === 0
@@ -240,13 +238,9 @@ export default function EventDetails() {
 
           <section className="card p-6" aria-labelledby="participants-heading">
             <h2 id="participants-heading" className="mb-4 text-lg font-bold text-stone-900">
-              Who's coming ({participants.length})
+              Registered volunteers ({event.registered_count})
             </h2>
-            <ParticipantList
-              participants={participants}
-              showIds={false}
-              emptyText="Nobody has registered yet. Be the first!"
-            />
+            <p className="text-sm text-stone-500">Volunteer details are visible only to the event’s authorized organizers.</p>
           </section>
 
           {/* Related Opportunities based on this event category & student interests */}

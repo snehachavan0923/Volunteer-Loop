@@ -30,6 +30,8 @@ import SuccessMessage from '../components/SuccessMessage'
 export default function Organizer() {
   const { identity, profile, isAuthenticated, isLoading: authLoading, login } = useIdentity()
   const [events, setEvents] = useState([])
+  const [organizationStatus, setOrganizationStatus] = useState(null)
+  const [dashboardOwnerId, setDashboardOwnerId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedId, setSelectedId] = useState(null)
@@ -45,14 +47,21 @@ export default function Organizer() {
   const [showParticipants, setShowParticipants] = useState(false)
   const [openDutyId, setOpenDutyId] = useState(null)
   const summarySeq = useRef(0)
+  const dashboardSeq = useRef(0)
+  const identityKey = identity?.studentId
 
   const isOrganizerOrAdmin = Boolean(
     (profile?.roles || identity?.roles || []).some((r) => r === 'organizer' || r === 'admin')
   )
 
   const loadEvents = useCallback(async (preferId) => {
+    const seq = ++dashboardSeq.current
     try {
-      const list = await api.listEvents({ includePast: true })
+      const dashboard = await api.getOrganizerDashboard()
+      if (seq !== dashboardSeq.current) return
+      const list = dashboard.events || []
+      setDashboardOwnerId(identityKey)
+      setOrganizationStatus(dashboard.status)
       setEvents(list)
       setError('')
       setSelectedId((current) =>
@@ -60,11 +69,15 @@ export default function Organizer() {
       )
       if (preferId) setSelectedId(preferId)
     } catch (err) {
+      if (seq !== dashboardSeq.current) return
+      setDashboardOwnerId(identityKey)
+      setEvents([])
+      setOrganizationStatus(null)
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (seq === dashboardSeq.current) setLoading(false)
     }
-  }, [])
+  }, [identityKey])
 
   const loadSummary = useCallback(async (id) => {
     if (!id) {
@@ -86,12 +99,21 @@ export default function Organizer() {
   }, [])
 
   useEffect(() => {
+    dashboardSeq.current += 1
+    summarySeq.current += 1
+    setEvents([])
+    setSelectedId(null)
+    setSummary(null)
+    setSummaryError('')
+    setError('')
+    setLoading(true)
     if (isAuthenticated && isOrganizerOrAdmin) {
       loadEvents()
     } else {
+      setOrganizationStatus(null)
       setLoading(false)
     }
-  }, [isAuthenticated, isOrganizerOrAdmin, loadEvents])
+  }, [identityKey, isAuthenticated, isOrganizerOrAdmin, loadEvents])
 
   useEffect(() => {
     setShowParticipants(false)
@@ -219,6 +241,8 @@ export default function Organizer() {
     )
   }
 
+  const hasApprovedOrganization = organizationStatus === 'approved' || organizationStatus === 'admin'
+
   const eventModal = modal?.type === 'createEvent' || modal?.type === 'editEvent'
   const dutyModal = modal?.type === 'createDuty' || modal?.type === 'editDuty'
 
@@ -231,13 +255,13 @@ export default function Organizer() {
             Create events, publish duties, and manage participant attendance.
           </p>
         </div>
-        <button
+        {hasApprovedOrganization && <button
           type="button"
           className="btn-primary"
           onClick={() => { setFormError(''); setModal({ type: 'createEvent' }) }}
         >
           <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Create event
-        </button>
+        </button>}
       </div>
 
       <div className="mt-5 space-y-4">
@@ -245,8 +269,29 @@ export default function Organizer() {
         {error && <ErrorMessage message={error} onRetry={() => loadEvents()} />}
       </div>
 
-      {loading ? (
+      {loading || dashboardOwnerId !== identityKey ? (
         <LoadingState label="Loading events…" />
+      ) : !hasApprovedOrganization ? (
+        <div className="card mt-6 p-8 text-center">
+          <Shield className="mx-auto h-10 w-10 text-amber-600" />
+          <h2 className="mt-3 text-xl font-bold text-stone-900">
+            {organizationStatus === 'pending'
+              ? 'Organization approval pending'
+              : organizationStatus === 'rejected'
+                ? 'Organization application not approved'
+                : 'Complete your organization setup'}
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-stone-600">
+            {organizationStatus === 'pending'
+              ? 'Your organization application is being reviewed. Event management will be available after approval.'
+              : organizationStatus === 'rejected'
+                ? 'Review your application and submit an updated organization request from your account.'
+                : 'Submit your organization details from your account. You can manage events after an administrator approves the application.'}
+          </p>
+          <Link to="/account" className="btn-primary mt-5">
+            {organizationStatus === 'pending' ? 'View application status' : 'Set up organization'}
+          </Link>
+        </div>
       ) : events.length === 0 && !error ? (
         <div className="mt-6">
           <EmptyState
