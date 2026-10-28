@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
-import { CalendarDays, MapPin, UserRound, ArrowRight } from 'lucide-react'
 import { formatDateTime } from '../utils/format'
 import CapacityBar from './CapacityBar'
-
+import { CalendarDays, MapPin, UserRound, ArrowRight } from 'lucide-react'
 
 export default function EventCard({ event }) {
   const full = event.remaining_seats === 0
