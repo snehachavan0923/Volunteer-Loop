@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-stone-50 font-sans text-stone-800 antialiased;
+  }
+}
+
+/* Small design system: the same buttons, inputs and cards everywhere. */
+@layer components {
+  /* Shared button shape (grouped selector: Tailwind cannot @apply a custom class). */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-emerald-700 text-white shadow-sm hover:bg-emerald-800;
+  }
+  .btn-secondary {
+    @apply border border-stone-300 bg-white text-stone-700 hover:bg-stone-100;
+  }
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+  .btn-ghost {
+    @apply px-3 py-2 text-stone-600 hover:bg-stone-200/70;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-stone-700;
+  }
+  .input {
+    @apply block w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 shadow-sm
+      placeholder:text-stone-400 focus:border-emerald-600 focus:outline-2 focus:outline-emerald-600/30;
+  }
+  .input-error {
+    @apply border-red-500;
+  }
+  .card {
+    @apply rounded-2xl border border-stone-200 bg-white shadow-sm;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+}

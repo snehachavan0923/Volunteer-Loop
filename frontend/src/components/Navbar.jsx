@@ -1,0 +1,172 @@
+import { useState } from 'react'
+import { Link, NavLink } from 'react-router-dom'
+import { HeartHandshake, Menu, UserRound, X } from 'lucide-react'
+import { useIdentity } from '../context/IdentityContext'
+
+export default function Navbar() {
+  const [open, setOpen] = useState(false)
+  const { identity, isAuthenticated, isLoading, logout } = useIdentity()
+  const roles = identity?.roles || []
+
+  const links = [{ to: '/', label: 'Explore Events', end: true }]
+
+  if (isAuthenticated) {
+    if (roles.includes('admin')) {
+      links.push({ to: '/admin', label: 'Admin Dashboard' })
+    } else if (roles.includes('organizer')) {
+      links.push({ to: '/organizer', label: 'Organizer Dashboard' })
+    } else {
+      links.push({ to: '/student-dashboard', label: 'Student Dashboard' })
+    }
+
+    links.push({ to: '/account', label: 'Account' })
+  }
+
+  const linkClass = ({ isActive }) =>
+    `rounded-lg px-3 py-2 text-sm font-semibold transition ${
+      isActive
+        ? 'bg-emerald-50 text-emerald-800'
+        : 'text-stone-600 hover:bg-stone-100'
+    }`
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 backdrop-blur">
+      <nav
+        aria-label="Main"
+        className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6"
+      >
+        <Link
+          to="/"
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-stone-900"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white">
+            <HeartHandshake className="h-5 w-5" aria-hidden="true" />
+          </span>
+          Volunteer<span className="text-emerald-700">Loop</span>
+        </Link>
+
+        <div className="hidden items-center gap-1 md:flex">
+          {links.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              className={linkClass}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+
+          {!isLoading &&
+            (isAuthenticated ? (
+              <button
+                type="button"
+                onClick={logout}
+                className="ml-2 rounded-full border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+              >
+                Log out
+              </button>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="ml-2 rounded-full px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-100"
+                >
+                  Log in
+                </Link>
+                <Link
+                  to="/signup"
+                  className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                >
+                  Sign up
+                </Link>
+              </>
+            ))}
+
+          {isAuthenticated && (
+            <Link
+              to="/account"
+              className="ml-2 flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600"
+            >
+              <UserRound className="h-3.5 w-3.5" />
+              {identity?.studentName || 'My account'}
+            </Link>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="rounded-lg p-2 text-stone-700 hover:bg-stone-100 md:hidden"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
+          onClick={() => setOpen((previous) => !previous)}
+        >
+          {open ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
+        </button>
+      </nav>
+
+      {open && (
+        <div className="border-t border-stone-200 px-4 pb-3 pt-2 md:hidden">
+          <div className="flex flex-col gap-1">
+            {links.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </div>
+
+          {!isLoading &&
+            (isAuthenticated ? (
+              <>
+                <Link
+                  to="/account"
+                  onClick={() => setOpen(false)}
+                  className="mt-2 block rounded-lg px-3 py-2 text-sm font-semibold text-stone-700"
+                >
+                  Account · {identity?.studentName || 'Profile'}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    logout()
+                  }}
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold"
+                >
+                  Log out
+                </button>
+              </>
+            ) : (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setOpen(false)}
+                  className="btn-secondary"
+                >
+                  Log in
+                </Link>
+                <Link
+                  to="/signup"
+                  onClick={() => setOpen(false)}
+                  className="btn-primary"
+                >
+                  Sign up
+                </Link>
+              </div>
+            ))}
+        </div>
+      )}
+    </header>
+  )
+}

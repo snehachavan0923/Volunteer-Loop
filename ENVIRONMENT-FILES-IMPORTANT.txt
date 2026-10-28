@@ -1,0 +1,5 @@
+VolunteerLoop environment files
+
+This archive includes backend/.env and frontend/.env copied from the ZIP you uploaded, so your local settings are preserved. These files may contain credentials and must remain private. Do not commit them to GitHub or share this archive publicly. If any credentials were exposed, rotate them.
+
+The .env.example files intentionally contain placeholders and safe dummy values. They document the required variables and are templates, not working credentials.

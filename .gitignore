@@ -1,0 +1,28 @@
+# --- Python / backend ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# --- Local databases (never commit data) ---
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
+
+# --- Environment files (commit only the .env.example templates) ---
+.env
+.env.*
+!.env.example
+
+# --- Node / frontend ---
+node_modules/
+dist/
+*.log
+
+# --- Editors / OS ---
+.DS_Store
+.idea/
+.vscode/
