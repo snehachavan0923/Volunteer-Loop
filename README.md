@@ -3,7 +3,6 @@
 VolunteerLoop is a web-based platform that connects students with volunteering opportunities and helps organizations manage events, volunteers, and participation. It supports event discovery, registrations, duty management, and tracking volunteer hours.
 
 ## Tech Stack
-
 - **Frontend:** React, Vite
 - **Backend:** FastAPI (Python)
 - **Database:** MongoDB

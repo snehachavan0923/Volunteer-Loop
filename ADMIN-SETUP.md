@@ -1,7 +1,6 @@
 # VolunteerLoop local admin setup
 
 This is a patch for an existing VolunteerLoop checkout. Extract the ZIP into the project root (`VolunteerLoop 3`) and allow it to merge/replace the included files. Do not replace your `.env` file.
-
 ## 1. Verify the local account can use password login
 
 A local email/password account must have `password_hash` in `volunteerloop.users`. The patch still verifies the password; it does not bypass authentication. Auth0-only accounts without `password_hash` cannot use local password login. Create a new account through `/signup` if needed.
